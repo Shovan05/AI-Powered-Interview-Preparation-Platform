@@ -1,5 +1,5 @@
 const jwt = require("jsonwebtoken")
-const tokenBlacklistModel = require("../models/blacklist.model")
+const tokenBlacklistModel = require("../models/blacklist.model").default
 
 
 
