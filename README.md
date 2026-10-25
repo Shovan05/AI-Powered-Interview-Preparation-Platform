@@ -164,7 +164,7 @@ The app runs on `http://localhost:5173`.
 - Delete `node_modules` and the Puppeteer cache (`~/.cache/puppeteer`), then reinstall. To skip the download for now, set `PUPPETEER_SKIP_DOWNLOAD=true`. Resume PDF generation will not work until Chromium is installed (`npx puppeteer browsers install chrome`).
 ## Roadmap
  
-- [x] Migrate backend to TypeScript (in progress: models, config and auth middleware done)
+- [ ] Migrate backend to TypeScript (done: config, models, middleware, controllers, AI service; remaining: routes and app)
 - [ ] Unit and integration tests (Jest + Supertest)
 - [ ] Redis: token blacklist with TTL, report caching, rate limiting
 - [ ] Background job queue (BullMQ) for AI report and PDF generation
