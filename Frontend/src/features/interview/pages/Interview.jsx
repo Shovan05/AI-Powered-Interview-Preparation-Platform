@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import '../style/interview.scss'
 import { useInterview } from '../hooks/useInterview.js'
 import { useNavigate, useParams } from 'react-router'
-
+import TopBar from '../../../components/TopBar.jsx'
 
 
 const NAV_ITEMS = [
@@ -85,6 +85,7 @@ const Interview = () => {
 
     return (
         <div className='interview-page'>
+            <TopBar /> 
             <div className='interview-layout'>
 
                 {/* ── Left Nav ── */}
