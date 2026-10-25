@@ -2,10 +2,12 @@ import React, { useState, useRef } from 'react'
 import "../style/home.scss"
 import { useInterview } from '../hooks/useInterview.js'
 import { useNavigate } from 'react-router'
+import { useAuth } from '../../auth/hooks/useAuth.js'
 
 const Home = () => {
 
     const { loading, generateReport,reports } = useInterview()
+    const { user, handleLogout } = useAuth()
     const [ jobDescription, setJobDescription ] = useState("")
     const [ selfDescription, setSelfDescription ] = useState("")
     const [ selectedFileName, setSelectedFileName ] = useState("")
@@ -41,6 +43,15 @@ const Home = () => {
 
     return (
         <div className='home-page'>
+
+            {/* Top Bar */}
+            <nav className='top-bar'>
+                <span className='top-bar__brand'>AI Interview Prep</span>
+                <div className='top-bar__actions'>
+                    {user && <span className='top-bar__user'>{user.username}</span>}
+                    <button className='logout-btn' onClick={handleLogout}>Logout</button>
+                </div>
+            </nav>
 
             {/* Page Header */}
             <header className='page-header'>
