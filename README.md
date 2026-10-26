@@ -186,7 +186,7 @@ Tests run against an in-memory MongoDB, so they need no database setup or API ke
 ## Roadmap
 
 - [x] Migrate backend to TypeScript
-- [ ] Unit and integration tests (Jest + Supertest): auth routes covered, interview routes next
+- [x] Integration tests (Jest + Supertest) for auth and interview routes
 - [ ] Redis: token blacklist with TTL, report caching, rate limiting
 - [ ] Background job queue (BullMQ) for AI report and PDF generation
 - [ ] PostgreSQL for users and report metadata
