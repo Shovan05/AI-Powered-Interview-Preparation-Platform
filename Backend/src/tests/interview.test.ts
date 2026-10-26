@@ -221,7 +221,15 @@ describe("GET /api/interview/report/:interviewId", () => {
     expect(res.status).toBe(404);
   });
 
-  it.todo("returns 400 for a malformed report id (currently a 500, needs an ObjectId check)");
+  it("returns 400 for a malformed report id", async () => {
+    const cookie = await registerAndGetCookie(alice);
+
+    const res = await request(app)
+        .get("/api/interview/report/not-an-id")
+        .set("Cookie", cookie);
+
+    expect(res.status).toBe(400);
+    });
 });
 
 describe("POST /api/interview/resume/pdf/:interviewReportId", () => {
@@ -261,4 +269,14 @@ describe("POST /api/interview/resume/pdf/:interviewReportId", () => {
     expect(res.status).toBe(404);
     expect(mockGeneratePdf).not.toHaveBeenCalled();
   });
+  it("returns 400 for a malformed report id and never calls the AI", async () => {
+    const cookie = await registerAndGetCookie(alice);
+
+    const res = await request(app)
+        .post("/api/interview/resume/pdf/not-an-id")
+        .set("Cookie", cookie);
+
+    expect(res.status).toBe(400);
+    expect(mockGeneratePdf).not.toHaveBeenCalled();
+    });
 });

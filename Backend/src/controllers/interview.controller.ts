@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { PDFParse } from "pdf-parse";
+import { isValidObjectId } from "mongoose";
 import {
   generateInterviewReport,
   generateResumePdf,
@@ -76,6 +77,13 @@ async function getInterviewReportByIdController(
 ): Promise<void> {
   const interviewId = req.params.interviewId as string;
 
+  if (!isValidObjectId(interviewId)) {
+    res.status(400).json({
+      message: "Invalid interview report ID.",
+    });
+    return;
+  }
+
   const interviewReport = await interviewReportModel.findOne({
     _id: interviewId,
     user: req.user?.id,
@@ -122,6 +130,13 @@ async function generateResumePdfController(
   res: Response
 ): Promise<void> {
   const interviewReportId = req.params.interviewReportId as string;
+
+  if (!isValidObjectId(interviewReportId)) {
+    res.status(400).json({
+      message: "Invalid interview report ID.",
+    });
+    return;
+  }
 
   // Only the owner of a report may generate a PDF from it.
   const interviewReport = await interviewReportModel.findOne({
