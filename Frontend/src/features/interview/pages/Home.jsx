@@ -2,35 +2,36 @@ import React, { useState, useRef } from 'react'
 import "../style/home.scss"
 import { useInterview } from '../hooks/useInterview.js'
 import { useNavigate } from 'react-router'
-
+import TopBar from '../../../components/TopBar.jsx'
+ 
 const Home = () => {
-
+ 
     const { loading, generateReport,reports } = useInterview()
     const [ jobDescription, setJobDescription ] = useState("")
     const [ selfDescription, setSelfDescription ] = useState("")
     const [ selectedFileName, setSelectedFileName ] = useState("")
     const resumeInputRef = useRef()
-
+ 
     const navigate = useNavigate()
-
+ 
     const handleFileChange = (e) => {
         const file = e.target.files[ 0 ]
         setSelectedFileName(file ? file.name : "")
     }
-
+ 
     const handleGenerateReport = async () => {
         const resumeFile = resumeInputRef.current.files[ 0 ]
         const data = await generateReport({ jobDescription, selfDescription, resumeFile })
         navigate(`/interview/${data._id}`)
     }
-
+ 
     if (loading) {
         return (
         <main className="loading-screen">
             <div className="loader"></div>
-
+ 
             <h2>Preparing your AI Interview...</h2>
-
+ 
             <p>
                 Please wait while we analyze your resume and generate
                 personalized interview questions.
@@ -38,20 +39,23 @@ const Home = () => {
         </main>
         )
     }
-
+ 
     return (
         <div className='home-page'>
-
+ 
+            {/* Top Bar */}
+            <TopBar />
+ 
             {/* Page Header */}
             <header className='page-header'>
                 <h1>Create Your Custom <span className='highlight'>Interview Plan</span></h1>
                 <p>Let our AI analyze the job requirements and your unique profile to build a winning strategy.</p>
             </header>
-
+ 
             {/* Main Card */}
             <div className='interview-card'>
                 <div className='interview-card__body'>
-
+ 
                     {/* Left Panel - Job Description */}
                     <div className='panel panel--left'>
                         <div className='panel__header'>
@@ -69,10 +73,10 @@ const Home = () => {
                         />
                         <div className='char-counter'>0 / 5000 chars</div>
                     </div>
-
+ 
                     {/* Vertical Divider */}
                     <div className='panel-divider' />
-
+ 
                     {/* Right Panel - Profile */}
                     <div className='panel panel--right'>
                         <div className='panel__header'>
@@ -81,7 +85,7 @@ const Home = () => {
                             </span>
                             <h2>Your Profile</h2>
                         </div>
-
+ 
                         {/* Upload Resume */}
                         <div className='upload-section'>
                             <label className='section-label'>
@@ -108,10 +112,10 @@ const Home = () => {
                                 </div>
                             )}
                         </div>
-
+ 
                         {/* OR Divider */}
                         <div className='or-divider'><span>OR</span></div>
-
+ 
                         {/* Quick Self-Description */}
                         <div className='self-description'>
                             <label className='section-label' htmlFor='selfDescription'>Quick Self-Description</label>
@@ -123,7 +127,7 @@ const Home = () => {
                                 placeholder="Briefly describe your experience, key skills, and years of experience if you don't have a resume handy..."
                             />
                         </div>
-
+ 
                         {/* Info Box */}
                         <div className='info-box'>
                             <span className='info-box__icon'>
@@ -133,7 +137,7 @@ const Home = () => {
                         </div>
                     </div>
                 </div>
-
+ 
                 {/* Card Footer */}
                 <div className='interview-card__footer'>
                     <span className='footer-info'>AI-Powered Strategy Generation &bull; Approx 30s</span>
@@ -145,7 +149,7 @@ const Home = () => {
                     </button>
                 </div>
             </div>
-
+ 
             {/* Recent Reports List */}
             {reports.length > 0 && (
                 <section className='recent-reports'>
@@ -161,7 +165,7 @@ const Home = () => {
                     </ul>
                 </section>
             )}
-
+ 
             {/* Page Footer */}
             <footer className='page-footer'>
                 <a href='#'>Privacy Policy</a>
@@ -171,5 +175,5 @@ const Home = () => {
         </div>
     )
 }
-
+ 
 export default Home

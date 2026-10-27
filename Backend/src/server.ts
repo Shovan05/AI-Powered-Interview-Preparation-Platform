@@ -1,6 +1,11 @@
 import "dotenv/config";
+import { setServers } from "node:dns";
 import app from "./app";
 import connectToDB from "./config/database";
+
+if (process.env.NODE_ENV !== "production") {
+  setServers(["8.8.8.8", "1.1.1.1"]);
+}
 
 connectToDB();
 
