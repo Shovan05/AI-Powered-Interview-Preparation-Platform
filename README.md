@@ -3,6 +3,7 @@
 AI-powered interview preparation platform that analyzes your resume and a target job description to generate a personalized match score, technical & behavioral interview questions, skill gap analysis, and a day-wise preparation roadmap. Also generates a tailored, ATS-friendly resume PDF for the job.
 
 **Live demo:** [ai-interview-prep-mu-five.vercel.app](https://ai-interview-prep-mu-five.vercel.app)
+> The backend runs on Render's free tier and sleeps after inactivity, so the first request can take about a minute.
 
 <!-- Add 2-3 screenshots or a short demo GIF here, e.g.:
 ![Report page](docs/report-page.png)
@@ -51,6 +52,8 @@ AI-Powered-Interview-Preparation-Platform/
 │   ├── package.json
 │   ├── tsconfig.json
 │   ├── jest.config.js
+│   ├── jest.config.js
+│   ├── puppeteer.config.cjs
 │   └── src/
 │       ├── server.ts        # Entry point
 │       ├── app.ts           # Express app
@@ -168,6 +171,25 @@ Tests run against an in-memory MongoDB, so they need no database setup or API ke
 | GET | `/api/interview/report/:interviewId` | Get a specific interview report | Private |
 | POST | `/api/interview/resume/pdf/:interviewReportId` | Generate tailored resume PDF | Private |
 
+## Deployment
+
+The frontend is deployed on Vercel and the backend on Render (Node web service).
+
+Render settings:
+
+| Setting | Value |
+| --- | --- |
+| Root Directory | `Backend` |
+| Build Command | `npm install --include=dev && npx puppeteer browsers install chrome && npm run build` |
+| Start Command | `npm start` |
+| Environment | `MONGO_URI`, `JWT_SECRET`, `GOOGLE_GENAI_API_KEY` (do not set `NODE_ENV`) |
+
+Notes:
+
+- The build runs `tsc`, which is a dev dependency, so `--include=dev` makes sure it installs regardless of `NODE_ENV`.
+- `Backend/puppeteer.config.cjs` keeps Chrome inside the project folder, and the build installs it explicitly, so it is available at runtime for PDF generation.
+- On Vercel, set `VITE_API_URL` to the Render service URL.
+
 ## Troubleshooting
 
 **`querySrv ECONNREFUSED` when the backend connects to MongoDB Atlas**
@@ -183,6 +205,10 @@ Tests run against an in-memory MongoDB, so they need no database setup or API ke
 
 - Delete `node_modules` and the Puppeteer cache (`~/.cache/puppeteer`), then reinstall. To skip the download for now, set `PUPPETEER_SKIP_DOWNLOAD=true`. Resume PDF generation will not work until Chromium is installed (`npx puppeteer browsers install chrome`).
 
+**`Could not find Chrome` when generating a resume PDF on Render**
+
+- Chrome was not installed into the folder Puppeteer looks in. Make sure the build command includes `npx puppeteer browsers install chrome`, then run Manual Deploy with "Clear build cache & deploy".
+
 ## Roadmap
 
 - [x] Migrate backend to TypeScript
@@ -192,7 +218,7 @@ Tests run against an in-memory MongoDB, so they need no database setup or API ke
 - [ ] PostgreSQL for users and report metadata
 - [ ] Docker + docker-compose
 - [ ] CI with GitHub Actions (lint, test, build)
-- [ ] Deploy backend with environment-based config
+- [x] Deploy backend with environment-based config (Render)
 - [ ] OpenAPI/Swagger documentation
 - [ ] DOCX resume parsing support
 - [ ] Password reset flow
