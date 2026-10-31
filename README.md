@@ -50,12 +50,14 @@ AI-powered interview preparation platform that analyzes your resume and a target
 
 ```
 AI-Powered-Interview-Preparation-Platform/
+├── docker-compose.yml
 ├── Backend/
 │   ├── package.json
 │   ├── tsconfig.json
 │   ├── jest.config.js
-│   ├── jest.config.js
 │   ├── puppeteer.config.cjs
+│   ├── Dockerfile
+│   ├── .dockerignore
 │   └── src/
 │       ├── server.ts        # Entry point
 │       ├── app.ts           # Express app
@@ -150,6 +152,23 @@ The app runs on `http://localhost:5173`.
 | `PORT` | Backend | No | Server port (defaults to `3000`) |
 | `VITE_API_URL` | Frontend | Yes | Base URL of the backend API |
 
+## Run with Docker
+
+Create a `.env` file in the repo root (next to `docker-compose.yml`):
+
+```
+JWT_SECRET=your_jwt_secret
+GOOGLE_GENAI_API_KEY=your_gemini_api_key
+```
+
+Then run:
+
+```bash
+docker compose up --build
+```
+
+This starts the API on `http://localhost:3000` and a local MongoDB container, so no Atlas account is needed. Start the frontend as described above. Stop everything with `docker compose down` (add `-v` to also delete the database volume).
+
 ## Running Tests
 
 ```bash
@@ -218,8 +237,8 @@ Notes:
 - [ ] Redis: token blacklist with TTL, report caching, rate limiting
 - [ ] Background job queue (BullMQ) for AI report and PDF generation
 - [ ] PostgreSQL for users and report metadata
-- [ ] Docker + docker-compose
-- [x] CI with GitHub Actions (lint, test, build)
+- [x] Docker + docker-compose
+- [x] CI with GitHub Actions (typecheck, test, build)
 - [x] Deploy backend with environment-based config (Render)
 - [ ] OpenAPI/Swagger documentation
 - [ ] DOCX resume parsing support
