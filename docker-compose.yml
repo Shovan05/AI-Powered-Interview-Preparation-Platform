@@ -1,0 +1,19 @@
+services:
+  api:
+    build: ./Backend
+    ports:
+      - "3000:3000"
+    environment:
+      MONGO_URI: mongodb://mongo:27017/interviewprep
+      JWT_SECRET: ${JWT_SECRET}
+      GOOGLE_GENAI_API_KEY: ${GOOGLE_GENAI_API_KEY}
+    depends_on:
+      - mongo
+
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:

@@ -136,7 +136,9 @@ async function generateInterviewReport({
 }
 
 async function generatePdfFromHtml(htmlContent: string): Promise<Buffer> {
-  const browser = await puppeteer.launch();
+  const browser = await puppeteer.launch({
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
 
   try {
     const page = await browser.newPage();
