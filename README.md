@@ -1,5 +1,7 @@
 # AI Interview Prep
 
+![CI](https://github.com/Shovan05/AI-Powered-Interview-Preparation-Platform/actions/workflows/ci.yml/badge.svg)
+
 AI-powered interview preparation platform that analyzes your resume and a target job description to generate a personalized match score, technical & behavioral interview questions, skill gap analysis, and a day-wise preparation roadmap. Also generates a tailored, ATS-friendly resume PDF for the job.
 
 **Live demo:** [ai-interview-prep-mu-five.vercel.app](https://ai-interview-prep-mu-five.vercel.app)
@@ -217,7 +219,7 @@ Notes:
 - [ ] Background job queue (BullMQ) for AI report and PDF generation
 - [ ] PostgreSQL for users and report metadata
 - [ ] Docker + docker-compose
-- [ ] CI with GitHub Actions (lint, test, build)
+- [x] CI with GitHub Actions (lint, test, build)
 - [x] Deploy backend with environment-based config (Render)
 - [ ] OpenAPI/Swagger documentation
 - [ ] DOCX resume parsing support
