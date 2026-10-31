@@ -13,7 +13,7 @@ AI-powered interview preparation platform that analyzes your resume and a target
 
 ## Features
 
-- 🔐 **Authentication**: JWT (cookie-based) auth with register/login/logout and token blacklisting on logout
+- 🔐 **Authentication**: JWT (cookie-based) auth with register/login/logout; logged-out tokens are blacklisted in Redis with a TTL (MongoDB fallback when Redis is not configured)
 - 📄 **Resume Parsing**: Upload a PDF resume (parsed with `pdf-parse`) or provide a quick self-description instead
 - 🤖 **AI-Generated Interview Report**: Powered by Google Gemini, returns:
   - Match score (0–100) against the job description
@@ -23,6 +23,7 @@ AI-powered interview preparation platform that analyzes your resume and a target
   - Day-wise preparation roadmap with focus areas and tasks
 - 📥 **Tailored Resume PDF**: Generates a job-specific, ATS-friendly resume as a downloadable PDF (via Puppeteer)
 - 🗂️ **Report History**: View all previously generated interview reports
+- 🛡️ **Rate Limiting**: Redis-backed limits on login/register (10 per 15 min per IP) and on report/PDF generation (10 per hour per user)
 
 ## Tech Stack
 
