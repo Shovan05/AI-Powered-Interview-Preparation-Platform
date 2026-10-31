@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { authLimiter } from "../middlewares/rateLimit.middleware";
 import {
   registerUserController,
   loginUserController,
@@ -14,14 +15,14 @@ const authRouter = Router();
  * @description Register a new user
  * @access Public
  */
-authRouter.post("/register", registerUserController);
+authRouter.post("/register", authLimiter, registerUserController);
 
 /**
  * @route POST /api/auth/login
  * @description login user with email and password
  * @access Public
  */
-authRouter.post("/login", loginUserController);
+authRouter.post("/login", authLimiter, loginUserController);
 
 /**
  * @route GET /api/auth/logout

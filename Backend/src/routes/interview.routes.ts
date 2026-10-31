@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { authUser } from "../middlewares/auth.middleware";
+import { reportLimiter } from "../middlewares/rateLimit.middleware";
 import upload from "../middlewares/file.middleware";
 import {
   generateInterViewReportController,
@@ -18,6 +19,7 @@ const interviewRouter = Router();
 interviewRouter.post(
   "/",
   authUser,
+  reportLimiter,
   upload.single("resume"),
   generateInterViewReportController
 );
@@ -48,6 +50,7 @@ interviewRouter.get("/", authUser, getAllInterviewReportsController);
 interviewRouter.post(
   "/resume/pdf/:interviewReportId",
   authUser,
+  reportLimiter,
   generateResumePdfController
 );
 
