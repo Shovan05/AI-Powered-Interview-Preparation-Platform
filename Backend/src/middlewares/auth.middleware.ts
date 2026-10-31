@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt, { JwtPayload } from "jsonwebtoken";
-import tokenBlacklistModel from "../models/blacklist.model";
+import { isTokenBlacklisted } from "../services/tokenBlacklist.service";
 
 async function authUser(
   req: Request,
@@ -16,9 +16,7 @@ async function authUser(
     return;
   }
 
-  const isTokenBlacklisted = await tokenBlacklistModel.findOne({ token });
-
-  if (isTokenBlacklisted) {
+  if (await isTokenBlacklisted(token)) {
     res.status(401).json({
       message: "token is invalid",
     });

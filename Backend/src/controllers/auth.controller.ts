@@ -2,7 +2,7 @@ import { Request, Response, CookieOptions } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import userModel from "../models/user.model";
-import tokenBlacklistModel from "../models/blacklist.model";
+import { blacklistToken } from "../services/tokenBlacklist.service";
 
 interface RegisterBody {
   username?: string;
@@ -144,7 +144,7 @@ async function logoutUserController(
   const token = req.cookies.token;
 
   if (token) {
-    await tokenBlacklistModel.create({ token });
+        await blacklistToken(token);
   }
 
   res.clearCookie("token", cookieOptions);

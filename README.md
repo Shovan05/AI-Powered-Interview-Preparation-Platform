@@ -13,7 +13,7 @@ AI-powered interview preparation platform that analyzes your resume and a target
 
 ## Features
 
-- 🔐 **Authentication**: JWT (cookie-based) auth with register/login/logout and token blacklisting on logout
+- 🔐 **Authentication**: JWT (cookie-based) auth with register/login/logout; logged-out tokens are blacklisted in Redis with a TTL (MongoDB fallback when Redis is not configured)
 - 📄 **Resume Parsing**: Upload a PDF resume (parsed with `pdf-parse`) or provide a quick self-description instead
 - 🤖 **AI-Generated Interview Report**: Powered by Google Gemini, returns:
   - Match score (0–100) against the job description
@@ -23,6 +23,7 @@ AI-powered interview preparation platform that analyzes your resume and a target
   - Day-wise preparation roadmap with focus areas and tasks
 - 📥 **Tailored Resume PDF**: Generates a job-specific, ATS-friendly resume as a downloadable PDF (via Puppeteer)
 - 🗂️ **Report History**: View all previously generated interview reports
+- 🛡️ **Rate Limiting**: Redis-backed limits on login/register (10 per 15 min per IP) and on report/PDF generation (10 per hour per user)
 
 ## Tech Stack
 
@@ -45,6 +46,7 @@ AI-powered interview preparation platform that analyzes your resume and a target
 - Zod + `zod-to-json-schema` for structured AI response schemas
 - Puppeteer for HTML-to-PDF resume generation
 - Jest + Supertest + `mongodb-memory-server` for integration tests
+- Redis (ioredis) for the token blacklist with TTL
 
 ## Project Structure
 
@@ -150,6 +152,7 @@ The app runs on `http://localhost:5173`.
 | `JWT_SECRET` | Backend | Yes | Secret used to sign auth tokens |
 | `GOOGLE_GENAI_API_KEY` | Backend | Yes | Google Gemini API key |
 | `PORT` | Backend | No | Server port (defaults to `3000`) |
+| `REDIS_URL` | Backend | No | Redis connection string. If unset, the API runs without Redis and stores blacklisted tokens in MongoDB |
 | `VITE_API_URL` | Frontend | Yes | Base URL of the backend API |
 
 ## Run with Docker
@@ -167,7 +170,7 @@ Then run:
 docker compose up --build
 ```
 
-This starts the API on `http://localhost:3000` and a local MongoDB container, so no Atlas account is needed. Start the frontend as described above. Stop everything with `docker compose down` (add `-v` to also delete the database volume).
+This starts the API on `http://localhost:3000`, a local MongoDB container and a Redis container, so no Atlas account or separate Redis install is needed. Compose sets `MONGO_URI` and `REDIS_URL` for the API automatically, so your root `.env` only needs `JWT_SECRET` and `GOOGLE_GENAI_API_KEY`.
 
 ## Running Tests
 
