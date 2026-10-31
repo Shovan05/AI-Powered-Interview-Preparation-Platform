@@ -8,8 +8,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "jest",
-   "test:watch": "jest --watch",
-   "test:coverage": "jest --coverage"
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "keywords": [],
   "author": "",
@@ -21,6 +21,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
+    "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.2.1",
     "multer": "^2.0.2",

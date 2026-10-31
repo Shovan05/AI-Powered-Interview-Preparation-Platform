@@ -5,15 +5,20 @@ services:
       - "3000:3000"
     environment:
       MONGO_URI: mongodb://mongo:27017/interviewprep
+      REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET}
       GOOGLE_GENAI_API_KEY: ${GOOGLE_GENAI_API_KEY}
     depends_on:
       - mongo
+      - redis
 
   mongo:
     image: mongo:7
     volumes:
       - mongo-data:/data/db
+
+  redis:
+    image: redis:7-alpine
 
 volumes:
   mongo-data:
