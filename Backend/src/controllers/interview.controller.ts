@@ -1,19 +1,13 @@
 import { Request, Response } from "express";
 import { PDFParse } from "pdf-parse";
 import { isValidObjectId } from "mongoose";
-import {
-  generateInterviewReport,
-  generateResumePdf,
-} from "../services/ai.service";
+import { generateResumePdf } from "../services/ai.service";
 import interviewReportModel from "../models/interviewReport.model";
-import {
-  getCached,
-  setCached,
-  deleteCached,
-} from "../services/cache.service";
+import { getCached, setCached } from "../services/cache.service";
+import { enqueueReport } from "../queues/report.queue";
 
-const REPORT_TTL_SECONDS = 60 * 60; // reports never change, so a long TTL is safe
-const LIST_TTL_SECONDS = 10 * 60; // the list is also deleted when a report is created
+const REPORT_TTL_SECONDS = 60 * 60; // reports never change once completed
+const LIST_TTL_SECONDS = 10 * 60; // deleted when a report completes
 
 const reportKey = (userId: string, reportId: string): string =>
   `report:${userId}:${reportId}`;
@@ -25,7 +19,7 @@ interface GenerateReportBody {
 }
 
 /**
- * @description Controller to generate interview report based on user self description, resume and job description.
+ * @description Controller to start generating an interview report in the background.
  */
 async function generateInterViewReportController(
   req: Request,
@@ -60,26 +54,27 @@ async function generateInterViewReportController(
     resumeText = parsed.text;
   }
 
-  const interviewReportByAi = await generateInterviewReport({
-    resume: resumeText,
-    selfDescription,
-    jobDescription,
-  });
-
-  const interviewReport = await interviewReportModel.create({
+  // Save a placeholder now; the worker fills in the real content.
+  const report = await interviewReportModel.create({
     user: userId,
+    title: "Generating report...",
     resume: resumeText,
     selfDescription,
     jobDescription,
-    ...interviewReportByAi,
+    status: "pending",
   });
 
-  // The cached history list no longer includes this report, so drop it.
-  await deleteCached(listKey(String(userId)));
+  await enqueueReport({
+    reportId: String(report._id),
+    userId: String(userId),
+    resume: resumeText,
+    selfDescription,
+    jobDescription,
+  });
 
-  res.status(201).json({
-    message: "Interview report generated successfully.",
-    interviewReport,
+  res.status(202).json({
+    message: "Interview report is being generated.",
+    interviewReport: { _id: report._id, status: report.status },
   });
 }
 
@@ -127,7 +122,10 @@ async function getInterviewReportByIdController(
     return;
   }
 
-  await setCached(key, interviewReport, REPORT_TTL_SECONDS);
+  // Only finished reports are cached; pending ones change within seconds.
+  if (!interviewReport.status || interviewReport.status === "completed") {
+    await setCached(key, interviewReport, REPORT_TTL_SECONDS);
+  }
 
   res.set("X-Cache", "MISS");
   res.status(200).json({
@@ -137,7 +135,7 @@ async function getInterviewReportByIdController(
 }
 
 /**
- * @description Controller to get all interview reports of logged in user.
+ * @description Controller to get all completed interview reports of logged in user.
  */
 async function getAllInterviewReportsController(
   req: Request,
@@ -158,7 +156,10 @@ async function getAllInterviewReportsController(
   }
 
   const interviewReports = await interviewReportModel
-    .find({ user: req.user?.id })
+    .find({
+      user: req.user?.id,
+      status: { $nin: ["pending", "processing", "failed"] },
+    })
     .sort({ createdAt: -1 })
     .select(
       "-resume -selfDescription -jobDescription -__v -technicalQuestions -behavioralQuestions -skillGaps -preparationPlan"
@@ -199,6 +200,13 @@ async function generateResumePdfController(
   if (!interviewReport) {
     res.status(404).json({
       message: "Interview report not found.",
+    });
+    return;
+  }
+
+  if (interviewReport.status !== "completed") {
+    res.status(409).json({
+      message: "Interview report is not ready yet.",
     });
     return;
   }

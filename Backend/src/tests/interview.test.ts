@@ -68,13 +68,30 @@ async function registerAndGetCookie(user: typeof alice) {
   return res.headers["set-cookie"];
 }
 
+async function waitForReport(cookie: string, id: string) {
+  for (let i = 0; i < 100; i++) {
+    const res = await request(app)
+      .get(`/api/interview/report/${id}`)
+      .set("Cookie", cookie);
+    const report = res.body.interviewReport;
+
+    if (report?.status === "completed" || report?.status === "failed") {
+      return report;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error("Report did not finish in time");
+}
+
 async function createReport(cookie: string): Promise<string> {
   const res = await request(app)
     .post("/api/interview")
     .set("Cookie", cookie)
     .send({ jobDescription: "Backend role", selfDescription: "Fresher" });
 
-  return res.body.interviewReport._id as string;
+  const id = res.body.interviewReport._id as string;
+  await waitForReport(cookie, id);
+  return id;
 }
 
 beforeAll(connectTestDB);
@@ -121,7 +138,7 @@ describe("POST /api/interview", () => {
     expect(mockGenerateReport).not.toHaveBeenCalled();
   });
 
-  it("generates a report from a self description only (no resume file)", async () => {
+  it("accepts a self-description-only request and generates the report in the background", async () => {
     const cookie = await registerAndGetCookie(alice);
 
     const res = await request(app)
@@ -129,9 +146,14 @@ describe("POST /api/interview", () => {
       .set("Cookie", cookie)
       .send({ jobDescription: "Backend role", selfDescription: "Fresher" });
 
-    expect(res.status).toBe(201);
-    expect(res.body.interviewReport.title).toBe("Backend Developer");
-    expect(res.body.interviewReport.matchScore).toBe(82);
+    expect(res.status).toBe(202);
+    expect(res.body.interviewReport.status).toBe("pending");
+
+    const report = await waitForReport(cookie, res.body.interviewReport._id);
+
+    expect(report.status).toBe("completed");
+    expect(report.title).toBe("Backend Developer");
+    expect(report.matchScore).toBe(82);
     expect(mockGenerateReport).toHaveBeenCalledWith(
       expect.objectContaining({
         jobDescription: "Backend role",
@@ -139,6 +161,23 @@ describe("POST /api/interview", () => {
         resume: "",
       })
     );
+  });
+
+  it("marks the report as failed when the AI service throws", async () => {
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => undefined);
+    const cookie = await registerAndGetCookie(alice);
+    mockGenerateReport.mockRejectedValueOnce(new Error("Gemini down"));
+
+    const res = await request(app)
+      .post("/api/interview")
+      .set("Cookie", cookie)
+      .send({ jobDescription: "Backend role", selfDescription: "Fresher" });
+
+    const report = await waitForReport(cookie, res.body.interviewReport._id);
+
+    expect(report.status).toBe("failed");
+    expect(report.error).toBe("Gemini down");
+    errorSpy.mockRestore();
   });
 
   it("parses an uploaded PDF resume and passes its text to the AI service", async () => {
@@ -150,7 +189,8 @@ describe("POST /api/interview", () => {
       .field("jobDescription", "Backend role")
       .attach("resume", Buffer.from("%PDF-1.4 fake"), "resume.pdf");
 
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(202);
+    await waitForReport(cookie, res.body.interviewReport._id);
     expect(mockGenerateReport).toHaveBeenCalledWith(
       expect.objectContaining({ resume: "parsed resume text" })
     );
