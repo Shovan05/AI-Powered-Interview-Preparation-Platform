@@ -6,6 +6,18 @@ import {
   generateResumePdf,
 } from "../services/ai.service";
 import interviewReportModel from "../models/interviewReport.model";
+import {
+  getCached,
+  setCached,
+  deleteCached,
+} from "../services/cache.service";
+
+const REPORT_TTL_SECONDS = 60 * 60; // reports never change, so a long TTL is safe
+const LIST_TTL_SECONDS = 10 * 60; // the list is also deleted when a report is created
+
+const reportKey = (userId: string, reportId: string): string =>
+  `report:${userId}:${reportId}`;
+const listKey = (userId: string): string => `reports:${userId}`;
 
 interface GenerateReportBody {
   selfDescription?: string;
@@ -62,6 +74,9 @@ async function generateInterViewReportController(
     ...interviewReportByAi,
   });
 
+  // The cached history list no longer includes this report, so drop it.
+  await deleteCached(listKey(String(userId)));
+
   res.status(201).json({
     message: "Interview report generated successfully.",
     interviewReport,
@@ -84,10 +99,26 @@ async function getInterviewReportByIdController(
     return;
   }
 
-  const interviewReport = await interviewReportModel.findOne({
-    _id: interviewId,
-    user: req.user?.id,
-  });
+  const userId = String(req.user?.id);
+  const key = reportKey(userId, interviewId);
+
+  const cached = await getCached<unknown>(key);
+
+  if (cached) {
+    res.set("X-Cache", "HIT");
+    res.status(200).json({
+      message: "Interview report fetched successfully.",
+      interviewReport: cached,
+    });
+    return;
+  }
+
+  const interviewReport = await interviewReportModel
+    .findOne({
+      _id: interviewId,
+      user: req.user?.id,
+    })
+    .lean();
 
   if (!interviewReport) {
     res.status(404).json({
@@ -96,6 +127,9 @@ async function getInterviewReportByIdController(
     return;
   }
 
+  await setCached(key, interviewReport, REPORT_TTL_SECONDS);
+
+  res.set("X-Cache", "MISS");
   res.status(200).json({
     message: "Interview report fetched successfully.",
     interviewReport,
@@ -109,13 +143,31 @@ async function getAllInterviewReportsController(
   req: Request,
   res: Response
 ): Promise<void> {
+  const userId = String(req.user?.id);
+  const key = listKey(userId);
+
+  const cached = await getCached<unknown[]>(key);
+
+  if (cached) {
+    res.set("X-Cache", "HIT");
+    res.status(200).json({
+      message: "Interview reports fetched successfully.",
+      interviewReports: cached,
+    });
+    return;
+  }
+
   const interviewReports = await interviewReportModel
     .find({ user: req.user?.id })
     .sort({ createdAt: -1 })
     .select(
       "-resume -selfDescription -jobDescription -__v -technicalQuestions -behavioralQuestions -skillGaps -preparationPlan"
-    );
+    )
+    .lean();
 
+  await setCached(key, interviewReports, LIST_TTL_SECONDS);
+
+  res.set("X-Cache", "MISS");
   res.status(200).json({
     message: "Interview reports fetched successfully.",
     interviewReports,
