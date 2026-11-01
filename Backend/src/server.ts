@@ -3,6 +3,7 @@ import { setServers } from "node:dns";
 import app from "./app";
 import connectToDB from "./config/database";
 import { connectRedis } from "./config/redis";
+import { startReportQueue } from "./queues/report.queue";
 
 // Development only: some networks can't resolve Atlas SRV records,
 // so use public DNS servers. Skipped in production (Render, Docker).
@@ -15,7 +16,7 @@ const PORT = process.env.PORT || 3000;
 const start = async (): Promise<void> => {
   await connectToDB();
   await connectRedis();
-
+  startReportQueue();
   app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
   });

@@ -28,6 +28,8 @@ export interface IInterviewReport {
   preparationPlan: IPreparationDay[];
   user?: Types.ObjectId;
   title: string;
+  status?: "pending" | "processing" | "completed" | "failed";
+  error?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -128,6 +130,14 @@ const interviewReportSchema = new Schema<IInterviewReport>(
     title: {
       type: String,
       required: [true, "Job title is required"],
+    },
+    status: {
+      type: String,
+      enum: ["pending", "processing", "completed", "failed"],
+      default: "completed",
+    },
+    error: {
+      type: String,
     },
   },
   {
