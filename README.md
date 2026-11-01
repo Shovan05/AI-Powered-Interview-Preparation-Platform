@@ -24,6 +24,7 @@ AI-powered interview preparation platform that analyzes your resume and a target
 - 📥 **Tailored Resume PDF**: Generates a job-specific, ATS-friendly resume as a downloadable PDF (via Puppeteer)
 - 🗂️ **Report History**: View all previously generated interview reports
 - 🛡️ **Rate Limiting**: Redis-backed limits on login/register (10 per 15 min per IP) and on report/PDF generation (10 per hour per user)
+- ⚡ **Caching**: Redis cache-aside caching for reports and report history, invalidated when a new report is created
 
 ## Tech Stack
 
@@ -237,7 +238,7 @@ Notes:
 
 - [x] Migrate backend to TypeScript
 - [x] Integration tests (Jest + Supertest) for auth and interview routes
-- [ ] Redis: token blacklist with TTL, report caching, rate limiting
+- [x] Redis: token blacklist with TTL, report caching, rate limiting
 - [ ] Background job queue (BullMQ) for AI report and PDF generation
 - [ ] PostgreSQL for users and report metadata
 - [x] Docker + docker-compose
