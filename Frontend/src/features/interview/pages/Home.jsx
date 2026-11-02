@@ -1,37 +1,61 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import "../style/home.scss"
 import { useInterview } from '../hooks/useInterview.js'
 import { useNavigate } from 'react-router'
 import TopBar from '../../../components/TopBar.jsx'
- 
+
+const ERROR_VISIBLE_MS = 5000
+
+// Turn whatever went wrong into a message a user can act on.
+const getFriendlyMessage = (error) => {
+    const serverMessage = error?.response?.data?.message
+    if (serverMessage) return serverMessage // validation, rate limit, etc.
+
+    if (error?.message === "Report generation timed out") {
+        return "This is taking longer than expected. Please try again in a moment."
+    }
+
+    return "We couldn't create your report. Please try again in a moment."
+}
+
 const Home = () => {
- 
-    const { loading, generateReport,reports } = useInterview()
+
+    const { loading, generateReport, reports } = useInterview()
     const [ jobDescription, setJobDescription ] = useState("")
     const [ selfDescription, setSelfDescription ] = useState("")
-    const [ selectedFileName, setSelectedFileName ] = useState("")
-    const resumeInputRef = useRef()
- 
+    const [ resumeFile, setResumeFile ] = useState(null)
+    const [ errorMessage, setErrorMessage ] = useState("")
+
     const navigate = useNavigate()
- 
+
+    // Hide the error message by itself after 5 seconds.
+    useEffect(() => {
+        if (!errorMessage) return
+        const timer = setTimeout(() => setErrorMessage(""), ERROR_VISIBLE_MS)
+        return () => clearTimeout(timer)
+    }, [ errorMessage ])
+
     const handleFileChange = (e) => {
-        const file = e.target.files[ 0 ]
-        setSelectedFileName(file ? file.name : "")
+        setResumeFile(e.target.files[ 0 ] || null)
     }
- 
+
     const handleGenerateReport = async () => {
-        const resumeFile = resumeInputRef.current.files[ 0 ]
-        const data = await generateReport({ jobDescription, selfDescription, resumeFile })
-        navigate(`/interview/${data._id}`)
+        setErrorMessage("")
+        try {
+            const data = await generateReport({ jobDescription, selfDescription, resumeFile })
+            navigate(`/interview/${data._id}`)
+        } catch (error) {
+            setErrorMessage(getFriendlyMessage(error))
+        }
     }
- 
+
     if (loading) {
         return (
         <main className="loading-screen">
             <div className="loader"></div>
- 
+
             <h2>Preparing your AI Interview...</h2>
- 
+
             <p>
                 Please wait while we analyze your resume and generate
                 personalized interview questions.
@@ -39,23 +63,37 @@ const Home = () => {
         </main>
         )
     }
- 
+
     return (
         <div className='home-page'>
- 
+
+            {/* Temporary error message */}
+            {errorMessage && (
+                <div className='toast toast--error' role='alert'>
+                    <span>{errorMessage}</span>
+                    <button
+                        type='button'
+                        className='toast__close'
+                        aria-label='Dismiss message'
+                        onClick={() => setErrorMessage("")}>
+                        &times;
+                    </button>
+                </div>
+            )}
+
             {/* Top Bar */}
             <TopBar />
- 
+
             {/* Page Header */}
             <header className='page-header'>
                 <h1>Create Your Custom <span className='highlight'>Interview Plan</span></h1>
                 <p>Let our AI analyze the job requirements and your unique profile to build a winning strategy.</p>
             </header>
- 
+
             {/* Main Card */}
             <div className='interview-card'>
                 <div className='interview-card__body'>
- 
+
                     {/* Left Panel - Job Description */}
                     <div className='panel panel--left'>
                         <div className='panel__header'>
@@ -66,17 +104,18 @@ const Home = () => {
                             <span className='badge badge--required'>Required</span>
                         </div>
                         <textarea
+                            value={jobDescription}
                             onChange={(e) => { setJobDescription(e.target.value) }}
                             className='panel__textarea'
                             placeholder={`Paste the full job description here...\ne.g. 'Senior Frontend Engineer at Google requires proficiency in React, TypeScript, and large-scale system design...'`}
                             maxLength={5000}
                         />
-                        <div className='char-counter'>0 / 5000 chars</div>
+                        <div className='char-counter'>{jobDescription.length} / 5000 chars</div>
                     </div>
- 
+
                     {/* Vertical Divider */}
                     <div className='panel-divider' />
- 
+
                     {/* Right Panel - Profile */}
                     <div className='panel panel--right'>
                         <div className='panel__header'>
@@ -85,7 +124,7 @@ const Home = () => {
                             </span>
                             <h2>Your Profile</h2>
                         </div>
- 
+
                         {/* Upload Resume */}
                         <div className='upload-section'>
                             <label className='section-label'>
@@ -98,28 +137,29 @@ const Home = () => {
                                 </span>
                                 <p className='dropzone__title'>Click to upload or drag &amp; drop</p>
                                 <p className='dropzone__subtitle'>PDF or DOCX (Max 5MB)</p>
-                                <input ref={resumeInputRef} onChange={handleFileChange} hidden type='file' id='resume' name='resume' accept='.pdf,.docx' />
+                                <input onChange={handleFileChange} hidden type='file' id='resume' name='resume' accept='.pdf,.docx' />
                             </label>
-                            {selectedFileName && (
+                            {resumeFile && (
                                 <div className='selected-file'>
                                     <span className='selected-file__icon'>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
                                     </span>
-                                    <span className='selected-file__name'>{selectedFileName}</span>
+                                    <span className='selected-file__name'>{resumeFile.name}</span>
                                     <span className='selected-file__check'>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                                     </span>
                                 </div>
                             )}
                         </div>
- 
+
                         {/* OR Divider */}
                         <div className='or-divider'><span>OR</span></div>
- 
+
                         {/* Quick Self-Description */}
                         <div className='self-description'>
                             <label className='section-label' htmlFor='selfDescription'>Quick Self-Description</label>
                             <textarea
+                                value={selfDescription}
                                 onChange={(e) => { setSelfDescription(e.target.value) }}
                                 id='selfDescription'
                                 name='selfDescription'
@@ -127,7 +167,7 @@ const Home = () => {
                                 placeholder="Briefly describe your experience, key skills, and years of experience if you don't have a resume handy..."
                             />
                         </div>
- 
+
                         {/* Info Box */}
                         <div className='info-box'>
                             <span className='info-box__icon'>
@@ -137,7 +177,7 @@ const Home = () => {
                         </div>
                     </div>
                 </div>
- 
+
                 {/* Card Footer */}
                 <div className='interview-card__footer'>
                     <span className='footer-info'>AI-Powered Strategy Generation &bull; Approx 30s</span>
@@ -149,7 +189,7 @@ const Home = () => {
                     </button>
                 </div>
             </div>
- 
+
             {/* Recent Reports List */}
             {reports.length > 0 && (
                 <section className='recent-reports'>
@@ -165,7 +205,7 @@ const Home = () => {
                     </ul>
                 </section>
             )}
- 
+
             {/* Page Footer */}
             <footer className='page-footer'>
                 <a href='#'>Privacy Policy</a>
@@ -175,5 +215,5 @@ const Home = () => {
         </div>
     )
 }
- 
+
 export default Home
