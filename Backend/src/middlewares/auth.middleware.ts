@@ -35,7 +35,7 @@ async function authUser(
     req.user = decoded;
 
     next();
-  } catch (err) {
+  } catch {
     res.status(401).json({
       message: "Invalid token.",
     });
