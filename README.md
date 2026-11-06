@@ -183,6 +183,7 @@ This starts the API on `http://localhost:3000`, a local MongoDB container and a 
 cd Backend
 npm test               # run all tests
 npm run test:coverage  # run with a coverage report
+npm run lint           # ESLint
 ```
 
 Tests run against an in-memory MongoDB, so they need no database setup or API keys. The first run downloads a MongoDB binary, which can take a few minutes.
@@ -248,7 +249,7 @@ Notes:
 - [x] Background job queue (BullMQ) for AI report and PDF generation
 - [ ] PostgreSQL for users and report metadata
 - [x] Docker + docker-compose
-- [x] CI with GitHub Actions (typecheck, test, build)
+- [x] CI with GitHub Actions (typecheck, lint, test, build)
 - [x] Deploy backend with environment-based config (Render)
 - [x] OpenAPI/Swagger documentation
 - [ ] DOCX resume parsing support
