@@ -43,6 +43,15 @@ describe("POST /api/auth/register", () => {
 
     expect(res.status).toBe(400);
   });
+
+    it("treats emails as case-insensitive", async () => {
+    await request(app).post("/api/auth/register").send(user);
+    const res = await request(app)
+      .post("/api/auth/register")
+      .send({ ...user, username: "alice2", email: "ALICE@example.com" });
+
+    expect(res.status).toBe(400);
+  });
 });
 
 describe("POST /api/auth/login", () => {
@@ -73,6 +82,14 @@ describe("POST /api/auth/login", () => {
       .send({ email: "nobody@example.com", password: user.password });
 
     expect(res.status).toBe(400);
+  });
+
+    it("logs in when the email is typed in a different case", async () => {
+    const res = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "Alice@Example.com", password: user.password });
+
+    expect(res.status).toBe(200);
   });
 });
 

@@ -12,3 +12,10 @@ export function getPool(): Pool {
   if (!pool) throw new Error("PostgreSQL not connected");
   return pool;
 }
+
+export async function closePostgres(): Promise<void> {
+  if (pool) {
+    await pool.end();
+    pool = null;
+  }
+}
