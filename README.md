@@ -268,7 +268,7 @@ Notes:
 
 - The build runs `tsc`, which is a dev dependency, so `--include=dev` makes sure it installs regardless of `NODE_ENV`.
 - `Backend/puppeteer.config.cjs` keeps Chrome inside the project folder, and the build installs it explicitly, so it is available at runtime for PDF generation.
-- Use the database's **Internal Database URL** for `DATABASE_URL` when the web service is in the same Render region.
+- Use the database’s Internal Database URL. Leave DATABASE_SSL unset for it, because Render’s internal connection stays on the private network and its certificate is self-signed.
 - Migrations run automatically when the server starts.
 - On Vercel, set `VITE_API_URL` to the Render service URL.
 
