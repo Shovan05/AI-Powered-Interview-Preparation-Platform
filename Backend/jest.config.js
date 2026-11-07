@@ -6,6 +6,7 @@ module.exports = {
   testMatch: ["**/*.test.ts"],
   setupFiles: ["<rootDir>/src/tests/setupEnv.ts"],
   testTimeout: 30000,
+  maxWorkers: 1,
   transform: {
     "^.+\\.ts$": ["ts-jest", { diagnostics: { ignoreCodes: [151002] } }],
   },

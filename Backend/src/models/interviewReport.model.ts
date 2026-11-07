@@ -1,4 +1,4 @@
-import mongoose, { Schema, Types } from "mongoose";
+import mongoose, { Schema } from "mongoose";
 
 export interface IQuestion {
   question: string;
@@ -26,7 +26,7 @@ export interface IInterviewReport {
   behavioralQuestions: IQuestion[];
   skillGaps: ISkillGap[];
   preparationPlan: IPreparationDay[];
-  user?: Types.ObjectId;
+  user?: string;
   title: string;
   status?: "pending" | "processing" | "completed" | "failed";
   error?: string;
@@ -124,8 +124,8 @@ const interviewReportSchema = new Schema<IInterviewReport>(
     skillGaps: [skillGapSchema],
     preparationPlan: [preparationPlanSchema],
     user: {
-      type: Schema.Types.ObjectId,
-      ref: "users",
+      type: String,
+      index: true,
     },
     title: {
       type: String,

@@ -6,11 +6,16 @@ services:
     environment:
       MONGO_URI: mongodb://mongo:27017/interviewprep
       REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://app:${POSTGRES_PASSWORD}@postgres:5432/interviewprep
       JWT_SECRET: ${JWT_SECRET}
       GOOGLE_GENAI_API_KEY: ${GOOGLE_GENAI_API_KEY}
     depends_on:
-      - mongo
-      - redis
+      mongo:
+        condition: service_started
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
 
   mongo:
     image: mongo:7
@@ -19,6 +24,23 @@ services:
 
   redis:
     image: redis:7-alpine
+  
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: interviewprep
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d interviewprep"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 volumes:
   mongo-data:
+  pgdata:
