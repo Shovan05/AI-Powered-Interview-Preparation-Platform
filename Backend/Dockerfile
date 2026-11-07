@@ -30,6 +30,10 @@ RUN npx puppeteer browsers install chrome
 RUN chown -R node:node /app
 
 COPY --from=build --chown=node:node /app/dist ./dist
+
+COPY --chown=node:node migrations ./migrations
+USER node
+
 USER node
 EXPOSE 3000
 CMD ["node", "dist/server.js"]
