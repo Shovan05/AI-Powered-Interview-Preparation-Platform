@@ -1,7 +1,11 @@
 import { Request, Response, CookieOptions } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import userModel from "../models/user.model";
+import {
+  createUser,
+  findUserByEmail,
+  findUserById,
+} from "../repositories/user.repository";
 import { blacklistToken } from "../services/tokenBlacklist.service";
 
 interface RegisterBody {
@@ -31,6 +35,15 @@ function createToken(id: string, username: string): string {
   return jwt.sign({ id, username }, secret, { expiresIn: "1d" });
 }
 
+// PostgreSQL error code for a unique constraint violation
+function isUniqueViolation(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    (err as { code?: string }).code === "23505"
+  );
+}
+
 /**
  * @name registerUserController
  * @description register a new user, expects username, email and password in the request body
@@ -49,34 +62,30 @@ async function registerUserController(
     return;
   }
 
-  const isUserAlreadyExists = await userModel.findOne({
-    $or: [{ username }, { email }],
-  });
-
-  if (isUserAlreadyExists) {
-    res.status(400).json({
-      message: "Account already exists with this email address or username",
-    });
-    return;
-  }
-
   const hash = await bcrypt.hash(password, 10);
 
-  const user = await userModel.create({
-    username,
-    email,
-    password: hash,
-  });
+  let user;
+  try {
+    user = await createUser(username, email, hash);
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      res.status(400).json({
+        message: "Account already exists with this email address",
+      });
+      return;
+    }
+    throw err;
+  }
 
-  const token = createToken(user._id.toString(), user.username);
+  const token = createToken(user.id, user.name);
 
   res.cookie("token", token, cookieOptions);
 
   res.status(201).json({
     message: "User registered successfully",
     user: {
-      id: user._id,
-      username: user.username,
+      id: user.id,
+      username: user.name,
       email: user.email,
     },
   });
@@ -100,7 +109,7 @@ async function loginUserController(
     return;
   }
 
-  const user = await userModel.findOne({ email });
+  const user = await findUserByEmail(email);
 
   if (!user) {
     res.status(400).json({
@@ -109,7 +118,7 @@ async function loginUserController(
     return;
   }
 
-  const isPasswordValid = await bcrypt.compare(password, user.password);
+  const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
   if (!isPasswordValid) {
     res.status(400).json({
@@ -118,15 +127,15 @@ async function loginUserController(
     return;
   }
 
-  const token = createToken(user._id.toString(), user.username);
+  const token = createToken(user.id, user.name);
 
   res.cookie("token", token, cookieOptions);
 
   res.status(200).json({
     message: "User loggedIn successfully.",
     user: {
-      id: user._id,
-      username: user.username,
+      id: user.id,
+      username: user.name,
       email: user.email,
     },
   });
@@ -144,7 +153,7 @@ async function logoutUserController(
   const token = req.cookies.token;
 
   if (token) {
-        await blacklistToken(token);
+    await blacklistToken(token);
   }
 
   res.clearCookie("token", cookieOptions);
@@ -169,7 +178,7 @@ async function getMeController(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const user = await userModel.findById(userId);
+  const user = await findUserById(userId);
 
   if (!user) {
     res.status(404).json({
@@ -181,8 +190,8 @@ async function getMeController(req: Request, res: Response): Promise<void> {
   res.status(200).json({
     message: "User details fetched successfully",
     user: {
-      id: user._id,
-      username: user.username,
+      id: user.id,
+      username: user.name,
       email: user.email,
     },
   });
