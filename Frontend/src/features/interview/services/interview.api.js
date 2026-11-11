@@ -58,18 +58,3 @@ export const generateResumePdf = async ({ interviewReportId }) => {
     return response.data
 }
 
-/**
- * @description Service to get resume pdf by interviewReportId.
- */
-export async function forgotPassword(email) {
-    const response = await api.post("/api/auth/forgot-password", { email })
-    return response.data
-}
-
-/**
- * @description Service to reset password using the token sent to user's email.
- */
-export async function resetPassword(token, newPassword) {
-    const response = await api.post("/api/auth/reset-password", { token, newPassword })
-    return response.data
-}
