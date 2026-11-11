@@ -5,6 +5,8 @@ import {
   loginUserController,
   logoutUserController,
   getMeController,
+  forgotPasswordController,
+  resetPasswordController,
 } from "../controllers/auth.controller";
 import { authUser } from "../middlewares/auth.middleware";
 
@@ -37,5 +39,19 @@ authRouter.get("/logout", logoutUserController);
  * @access private
  */
 authRouter.get("/get-me", authUser, getMeController);
+
+/**
+ * @route POST /api/auth/forgot-password
+ * @description email a password reset link if the account exists
+ * @access Public
+ */
+authRouter.post("/forgot-password", authLimiter, forgotPasswordController);
+
+/**
+ * @route POST /api/auth/reset-password
+ * @description set a new password using the token from the reset email
+ * @access Public
+ */
+authRouter.post("/reset-password", authLimiter, resetPasswordController);
 
 export default authRouter;

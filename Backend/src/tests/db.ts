@@ -31,7 +31,7 @@ export async function clearTestDB(): Promise<void> {
     await collections[key].deleteMany({});
   }
 
-  await getPool().query("TRUNCATE TABLE users");
+    await getPool().query("TRUNCATE TABLE users CASCADE");
 }
 
 export async function closeTestDB(): Promise<void> {

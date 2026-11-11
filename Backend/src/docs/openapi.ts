@@ -373,5 +373,56 @@ export const openApiSpec = {
         },
       },
     },
+    "/api/auth/forgot-password": {
+      post: {
+        summary: "Send a password reset link",
+        description:
+          "Emails a reset link if the account exists. The response is the same whether or not the email is registered.",
+        tags: ["Auth"],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["email"],
+                properties: { email: { type: "string", format: "email" } },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Reset link sent if the account exists" },
+          "400": { description: "Email missing" },
+          "429": { description: "Too many requests" },
+        },
+      },
+    },
+    "/api/auth/reset-password": {
+      post: {
+        summary: "Set a new password using a reset token",
+        tags: ["Auth"],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["token", "newPassword"],
+                properties: {
+                  token: { type: "string", description: "Token from the reset email" },
+                  newPassword: { type: "string", minLength: 8 },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Password updated" },
+          "400": { description: "Missing fields, short password, or invalid/expired/used token" },
+          "429": { description: "Too many requests" },
+        },
+      },
+    },
   },
 };
