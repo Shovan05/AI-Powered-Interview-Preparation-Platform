@@ -47,7 +47,7 @@ export async function logout() {
         return response.data
 
     } catch (err) {
-
+        console.log(err)
     }
 }
 
@@ -63,4 +63,21 @@ export async function getMe() {
         console.log(err)
     }
 
+}
+
+/**
+ * @description Ask the server to email a password reset link.
+ * No try/catch here on purpose: the page shows the server's error message.
+ */
+export async function forgotPassword(email) {
+    const response = await api.post("/api/auth/forgot-password", { email })
+    return response.data
+}
+
+/**
+ * @description Set a new password using the token from the reset email.
+ */
+export async function resetPassword(token, newPassword) {
+    const response = await api.post("/api/auth/reset-password", { token, newPassword })
+    return response.data
 }
