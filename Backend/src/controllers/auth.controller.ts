@@ -7,6 +7,9 @@ import {
   findUserById,
 } from "../repositories/user.repository";
 import { blacklistToken } from "../services/tokenBlacklist.service";
+import crypto from "crypto";
+import { createResetToken, resetPasswordWithToken } from "../repositories/passwordReset.repository";
+import { sendEmail } from "../services/email.service";
 
 interface RegisterBody {
   username?: string;
@@ -197,9 +200,110 @@ async function getMeController(req: Request, res: Response): Promise<void> {
   });
 }
 
+interface ForgotPasswordBody {
+  email?: string;
+}
+
+interface ResetPasswordBody {
+  token?: string;
+  newPassword?: string;
+}
+
+const RESET_TOKEN_MINUTES = 15;
+
+function hashToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+/**
+ * @name forgotPasswordController
+ * @description emails a password reset link if the account exists
+ * @access Public
+ */
+async function forgotPasswordController(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const { email } = req.body as ForgotPasswordBody;
+
+  if (!email) {
+    res.status(400).json({ message: "Please provide your email" });
+    return;
+  }
+
+  const user = await findUserByEmail(email);
+
+  if (user) {
+    // The token goes in the email; only its hash is stored.
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + RESET_TOKEN_MINUTES * 60 * 1000);
+    await createResetToken(user.id, hashToken(token), expiresAt);
+
+    const baseUrl = process.env.FRONTEND_URL ?? "http://localhost:5173";
+    const link = `${baseUrl}/reset-password?token=${token}`;
+
+    // Not awaited: the response time is the same whether or not the account exists,
+    // and a slow or failing mail server cannot make this request fail.
+    sendEmail(
+      user.email,
+      "Reset your password",
+      `<p>Hi ${user.name},</p>
+       <p>Click the link below to choose a new password. It expires in ${RESET_TOKEN_MINUTES} minutes and works once.</p>
+       <p><a href="${link}">Reset password</a></p>
+       <p>If you did not ask for this, you can ignore this email.</p>`,
+      `Hi ${user.name},\n\nChoose a new password (expires in ${RESET_TOKEN_MINUTES} minutes, works once):\n${link}\n\nIf you did not ask for this, ignore this email.`
+    ).catch((err) => console.error("Failed to send reset email:", err));
+  }
+
+  // Same answer either way, so nobody can use this to find out who is registered.
+  res.status(200).json({
+    message: "If an account exists for that email, a reset link has been sent.",
+  });
+}
+
+/**
+ * @name resetPasswordController
+ * @description sets a new password using the token from the reset email
+ * @access Public
+ */
+async function resetPasswordController(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const { token, newPassword } = req.body as ResetPasswordBody;
+
+  if (!token || !newPassword) {
+    res.status(400).json({ message: "Please provide token and newPassword" });
+    return;
+  }
+
+  if (newPassword.length < 8) {
+    res.status(400).json({
+      message: "New password must be at least 8 characters",
+    });
+    return;
+  }
+
+  const hash = await bcrypt.hash(newPassword, 10);
+  const ok = await resetPasswordWithToken(hashToken(token), hash);
+
+  if (!ok) {
+    res.status(400).json({
+      message: "This reset link is invalid or has expired",
+    });
+    return;
+  }
+
+  res.status(200).json({
+    message: "Password has been reset. Please log in.",
+  });
+}
+
 export {
   registerUserController,
   loginUserController,
   logoutUserController,
   getMeController,
+  forgotPasswordController,
+  resetPasswordController,
 };

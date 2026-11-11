@@ -35,6 +35,7 @@ const Login = () => {
                     </div>
                     <div className="input-group">
                         <label htmlFor="password">Password</label>
+                        <p><Link to={"/forgot-password"}>Forgot password?</Link></p>                        
                         <input
                             onChange={(e) => { setPassword(e.target.value) }}
                             type="password" id="password" name='password' placeholder='Enter password' />

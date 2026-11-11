@@ -9,10 +9,12 @@ describe("API documentation", () => {
     expect(res.body.openapi).toBe("3.0.3");
     expect(Object.keys(res.body.paths).sort()).toEqual(
       [
+        "/api/auth/forgot-password",
         "/api/auth/get-me",
         "/api/auth/login",
         "/api/auth/logout",
         "/api/auth/register",
+        "/api/auth/reset-password",
         "/api/interview",
         "/api/interview/report/{interviewId}",
         "/api/interview/resume/pdf/{interviewReportId}",

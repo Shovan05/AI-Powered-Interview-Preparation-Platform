@@ -14,6 +14,7 @@ AI-powered interview preparation platform that analyzes your resume and a target
 ## Features
 
 - 🔐 **Authentication**: JWT (cookie-based) auth with register/login/logout; users are stored in PostgreSQL with bcrypt-hashed passwords and a case-insensitive unique email; logged-out tokens are blacklisted in Redis with a TTL (MongoDB fallback when Redis is not configured)
+- 🔑 **Forgot / Reset Password**: a random single-use token is emailed as a link that expires after 15 minutes; only the token's hash is stored, and the endpoint answers the same way whether or not the email is registered
 - 📄 **Resume Parsing**: Upload a PDF resume (parsed with `pdf-parse`) or provide a quick self-description instead
 - 🤖 **AI-Generated Interview Report**: Powered by Google Gemini, returns:
   - Match score (0–100) against the job description
@@ -45,6 +46,7 @@ AI-powered interview preparation platform that analyzes your resume and a target
 - PostgreSQL (`pg` driver, plain SQL migrations) for users and authentication
 - MongoDB + Mongoose for interview reports
 - JWT (`jsonwebtoken`) + `bcryptjs` for authentication
+- Nodemailer (Gmail SMTP) behind a swappable `sendEmail` service for password reset emails
 - Multer for file uploads
 - `pdf-parse` for resume text extraction
 - Google Gemini (`@google/genai`) for AI generation
@@ -79,7 +81,7 @@ AI-Powered-Interview-Preparation-Platform/
 │       ├── repositories/    # SQL queries for users (PostgreSQL)
 │       ├── routes/          # Auth & interview routes
 │       ├── scripts/         # npm run migrate
-│       ├── services/        # Gemini AI, cache and token blacklist
+│       ├── services/        # Gemini AI, cache, token blacklist and email
 │       ├── tests/           # Jest + Supertest integration tests
 │       └── types/           # Shared TypeScript type declarations
 └── Frontend/
@@ -140,6 +142,10 @@ MONGO_URI=your_mongodb_connection_string
 DATABASE_URL=postgresql://app:choose_a_local_password@127.0.0.1:5433/interviewprep
 JWT_SECRET=your_jwt_secret
 GOOGLE_GENAI_API_KEY=your_gemini_api_key
+FRONTEND_URL=http://localhost:5173
+
+# Optional: password reset emails (see "Password reset emails" below)
+EMAIL_PROVIDER=console
 ```
 
 Run the backend:
@@ -185,6 +191,10 @@ The app runs on `http://localhost:5173`.
 | `GOOGLE_GENAI_API_KEY` | Backend | Yes | Google Gemini API key |
 | `PORT` | Backend | No | Server port (defaults to `3000`) |
 | `REDIS_URL` | Backend | No | Redis connection string. If unset, the API runs without Redis and stores blacklisted tokens in MongoDB |
+| `FRONTEND_URL` | Backend | No | Base URL used in password reset links (defaults to `http://localhost:5173`) |
+| `EMAIL_PROVIDER` | Backend | No | `console` (default: prints the reset link in the server log) or `gmail` (sends through Gmail SMTP) |
+| `EMAIL_USER` | Backend | With `gmail` | Gmail address used to send reset emails |
+| `EMAIL_APP_PASSWORD` | Backend | With `gmail` | Gmail app password for that account (needs 2-Step Verification) |
 | `TEST_DATABASE_URL` | Backend (tests, CI) | For tests | PostgreSQL test database. The database name must contain `_test` |
 | `POSTGRES_PASSWORD` | Repo root `.env` | For Docker | Password of the PostgreSQL container in Docker Compose |
 | `VITE_API_URL` | Frontend | Yes | Base URL of the backend API |
@@ -206,6 +216,17 @@ docker compose up --build
 ```
 
 This starts the API on `http://localhost:3000` together with local MongoDB, Redis and PostgreSQL containers, so no Atlas account or separate installs are needed. Compose sets `MONGO_URI`, `REDIS_URL` and `DATABASE_URL` for the API automatically. The API waits until PostgreSQL is healthy and then applies any pending migrations from `Backend/migrations`.
+
+## Password reset emails
+
+`POST /api/auth/forgot-password` creates a random token, stores only its SHA-256 hash with a 15-minute expiry, and emails a link to `FRONTEND_URL/reset-password?token=...`. `POST /api/auth/reset-password` claims the token and sets the new password in one transaction, so a link works only once.
+
+Emails go through one `sendEmail` function with a provider chosen by `EMAIL_PROVIDER`:
+
+- `console` (default): prints the email, including the link, in the server log. Used by tests and fresh clones. Do not use it with real users, because anyone who can read the logs could reset passwords.
+- `gmail`: SMTP through Gmail with an app password. Create a dedicated Gmail account, turn on 2-Step Verification, create an app password, and set `EMAIL_USER` and `EMAIL_APP_PASSWORD`.
+
+> Render's free web services block outbound SMTP ports, so the `gmail` provider will time out there. Use it locally or on a server that allows SMTP (for example AWS EC2), or add an HTTPS email provider such as Resend.
 
 ## Database migrations
 
@@ -234,7 +255,7 @@ npm run test:coverage  # run with a coverage report
 npm run lint           # ESLint
 ```
 
-Tests use an in-memory MongoDB for reports and the PostgreSQL test database for users, which is emptied between tests (the name must contain `_test`, so the tests refuse to run against any other database). Test files run one at a time because they share that database. The first run downloads a MongoDB binary, which can take a few minutes. CI runs the same tests against a PostgreSQL service container.
+Tests use an in-memory MongoDB for reports and the PostgreSQL test database for users (the email sender is mocked), which is emptied between tests (the name must contain `_test`, so the tests refuse to run against any other database). Test files run one at a time because they share that database. The first run downloads a MongoDB binary, which can take a few minutes. CI runs the same tests against a PostgreSQL service container.
 
 ## API Overview
 
@@ -246,6 +267,8 @@ Interactive docs: http://localhost:3000/api-docs (raw spec at /api-docs.json)
 | POST | `/api/auth/login` | Login user | Public |
 | GET | `/api/auth/logout` | Logout & blacklist token | Public |
 | GET | `/api/auth/get-me` | Get current logged-in user | Private |
+| POST | `/api/auth/forgot-password` | Email a password reset link | Public |
+| POST | `/api/auth/reset-password` | Set a new password with the emailed token | Public |
 | POST | `/api/interview/` | Generate a new interview report | Private |
 | GET | `/api/interview/` | Get all interview reports | Private |
 | GET | `/api/interview/report/:interviewId` | Get a specific interview report | Private |
@@ -284,6 +307,16 @@ Notes:
 - Another PostgreSQL server (for example one installed on Windows) may be using port 5432, so your connection reaches it instead of the Docker container. Use the container's published port `5433` in `DATABASE_URL`.
 - The `POSTGRES_PASSWORD` is only applied when the data volume is first created. To change it later, run `ALTER USER app PASSWORD 'new_password';` inside the container (`docker compose exec postgres psql -U app -d interviewprep`) and update your `.env` files to match.
 
+**Password reset email does not arrive**
+
+- With `EMAIL_PROVIDER=console` nothing is sent; the link is printed in the server log.
+- With `gmail`, check the spam folder and that `EMAIL_APP_PASSWORD` is an app password (not the account password) with no spaces. The server log shows `Failed to send reset email` with the reason.
+- On Render's free tier outbound SMTP is blocked, so the Gmail provider cannot connect there.
+
+**Opening a reset link on Vercel shows a 404**
+
+- Single-page app routes need a rewrite. Make sure `Frontend/vercel.json` contains `{ "rewrites": [{ "source": "/(.*)", "destination": "/" }] }`.
+
 **Login or any API call returns `404` in development**
 
 - `Frontend/.env` is missing or `VITE_API_URL` is wrong. Create it as shown above and restart the frontend (Vite reads `.env` only at startup).
@@ -308,7 +341,10 @@ Notes:
 - [x] CI with GitHub Actions (typecheck, lint, test, build)
 - [x] Deploy backend with environment-based config (Render)
 - [x] OpenAPI/Swagger documentation
-- [ ] Email verification and password reset (via Resend)
+- [x] Password reset by emailed single-use link
+- [ ] Email verification on registration
+- [ ] HTTPS email provider (Resend) for hosts that block SMTP
+- [ ] Deploy on AWS EC2
 - [ ] DOCX resume parsing support
 
 ## License

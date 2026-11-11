@@ -1,6 +1,15 @@
 import request from "supertest";
 import app from "../app";
 import { connectTestDB, clearTestDB, closeTestDB } from "./db";
+import { getPool } from "../config/postgres";
+import { sendEmail } from "../services/email.service";
+
+// Never send real email from tests.
+jest.mock("../services/email.service", () => ({
+  sendEmail: jest.fn().mockResolvedValue(undefined),
+}));
+
+const mockSendEmail = sendEmail as jest.MockedFunction<typeof sendEmail>;
 
 beforeAll(connectTestDB);
 afterEach(clearTestDB);
@@ -119,5 +128,135 @@ describe("GET /api/auth/logout", () => {
 
     const res = await request(app).get("/api/auth/get-me").set("Cookie", cookie);
     expect(res.status).toBe(401);
+  });
+});
+
+describe("forgot and reset password", () => {
+  beforeEach(async () => {
+    mockSendEmail.mockClear();
+    await request(app).post("/api/auth/register").send(user);
+  });
+
+  // The email text contains the reset link; pull the token out of it.
+  function tokenFromLastEmail(): string {
+    const calls = mockSendEmail.mock.calls;
+    const text = calls[calls.length - 1][3];
+    const match = text.match(/token=([a-f0-9]{64})/);
+    if (!match) throw new Error("No token found in the email");
+    return match[1];
+  }
+
+  async function requestReset(): Promise<string> {
+    await request(app)
+      .post("/api/auth/forgot-password")
+      .send({ email: user.email });
+    return tokenFromLastEmail();
+  }
+
+  it("rejects forgot-password without an email", async () => {
+    const res = await request(app).post("/api/auth/forgot-password").send({});
+
+    expect(res.status).toBe(400);
+  });
+
+  it("sends a reset email for a registered address", async () => {
+    const res = await request(app)
+      .post("/api/auth/forgot-password")
+      .send({ email: user.email });
+
+    expect(res.status).toBe(200);
+    expect(mockSendEmail).toHaveBeenCalledTimes(1);
+    expect(mockSendEmail.mock.calls[0][0]).toBe(user.email);
+  });
+
+  it("gives the same answer for an unknown address and sends nothing", async () => {
+    const known = await request(app)
+      .post("/api/auth/forgot-password")
+      .send({ email: user.email });
+    mockSendEmail.mockClear();
+
+    const unknown = await request(app)
+      .post("/api/auth/forgot-password")
+      .send({ email: "nobody@example.com" });
+
+    expect(unknown.status).toBe(200);
+    expect(unknown.body.message).toBe(known.body.message);
+    expect(mockSendEmail).not.toHaveBeenCalled();
+  });
+
+  it("resets the password: the old one stops working and the new one works", async () => {
+    const token = await requestReset();
+
+    const reset = await request(app)
+      .post("/api/auth/reset-password")
+      .send({ token, newPassword: "BrandNewPass1" });
+    expect(reset.status).toBe(200);
+
+    const oldLogin = await request(app)
+      .post("/api/auth/login")
+      .send({ email: user.email, password: user.password });
+    expect(oldLogin.status).toBe(400);
+
+    const newLogin = await request(app)
+      .post("/api/auth/login")
+      .send({ email: user.email, password: "BrandNewPass1" });
+    expect(newLogin.status).toBe(200);
+  });
+
+  it("only lets a reset link be used once", async () => {
+    const token = await requestReset();
+
+    const first = await request(app)
+      .post("/api/auth/reset-password")
+      .send({ token, newPassword: "BrandNewPass1" });
+    const second = await request(app)
+      .post("/api/auth/reset-password")
+      .send({ token, newPassword: "AnotherPass22" });
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(400);
+  });
+
+  it("rejects an expired token", async () => {
+    const token = await requestReset();
+    await getPool().query(
+      "UPDATE password_reset_tokens SET expires_at = now() - interval '1 minute'"
+    );
+
+    const res = await request(app)
+      .post("/api/auth/reset-password")
+      .send({ token, newPassword: "BrandNewPass1" });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects an unknown token", async () => {
+    const res = await request(app)
+      .post("/api/auth/reset-password")
+      .send({ token: "a".repeat(64), newPassword: "BrandNewPass1" });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects a short new password without using the token", async () => {
+    const token = await requestReset();
+
+    const short = await request(app)
+      .post("/api/auth/reset-password")
+      .send({ token, newPassword: "short" });
+    expect(short.status).toBe(400);
+
+    const valid = await request(app)
+      .post("/api/auth/reset-password")
+      .send({ token, newPassword: "BrandNewPass1" });
+    expect(valid.status).toBe(200);
+  });
+
+  it("rejects reset-password with missing fields", async () => {
+    const res = await request(app)
+      .post("/api/auth/reset-password")
+      .send({ token: "abc" });
+
+    expect(res.status).toBe(400);
   });
 });
